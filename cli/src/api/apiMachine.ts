@@ -8,7 +8,7 @@ import { realpathSync } from 'node:fs'
 import { basename, dirname, isAbsolute, join, relative, resolve as resolvePath } from 'node:path'
 import { logger } from '@/ui/logger'
 import { configuration } from '@/configuration'
-import type { Update, UpdateMachineBody } from '@hapi/protocol'
+import type { ClientToServerEvents, ServerToClientEvents, Update, UpdateMachineBody } from '@hapi/protocol'
 import type { MachineDirectoryEntry, MachineListDirectoryResponse, PathExistsResponse } from '@hapi/protocol/apiTypes'
 import { RPC_METHODS } from '@hapi/protocol/rpcMethods'
 import type { RunnerState, Machine, MachineMetadata } from './types'
@@ -25,40 +25,6 @@ import {
 import type { SpawnSessionOptions, SpawnSessionResult } from '../modules/common/rpcTypes'
 import { applyVersionedAck } from './versionedUpdate'
 import { buildSocketIoExtraHeaderOptions } from './hubExtraHeaders'
-
-interface ServerToRunnerEvents {
-    update: (data: Update) => void
-    'rpc-request': (data: { method: string; params: string }, callback: (response: string) => void) => void
-    error: (data: { message: string }) => void
-}
-
-interface RunnerToServerEvents {
-    'machine-alive': (data: { machineId: string; time: number }) => void
-    'machine-update-metadata': (data: { machineId: string; metadata: unknown; expectedVersion: number }, cb: (answer: {
-        result: 'error'
-    } | {
-        result: 'version-mismatch'
-        version: number
-        metadata: unknown | null
-    } | {
-        result: 'success'
-        version: number
-        metadata: unknown | null
-    }) => void) => void
-    'machine-update-state': (data: { machineId: string; runnerState: unknown | null; expectedVersion: number }, cb: (answer: {
-        result: 'error'
-    } | {
-        result: 'version-mismatch'
-        version: number
-        runnerState: unknown | null
-    } | {
-        result: 'success'
-        version: number
-        runnerState: unknown | null
-    }) => void) => void
-    'rpc-register': (data: { method: string }) => void
-    'rpc-unregister': (data: { method: string }) => void
-}
 
 type MachineRpcHandlers = {
     spawnSession: (options: SpawnSessionOptions) => Promise<SpawnSessionResult>
@@ -105,7 +71,7 @@ function formatWorkspaceRoots(paths?: string[]): string {
 }
 
 export class ApiMachineClient {
-    private socket!: Socket<ServerToRunnerEvents, RunnerToServerEvents>
+    private socket!: Socket<ServerToClientEvents, ClientToServerEvents>
     private keepAliveInterval: NodeJS.Timeout | null = null
     private rpcHandlerManager: RpcHandlerManager
 
